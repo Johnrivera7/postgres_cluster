@@ -36,6 +36,12 @@ John Rivera González - johnriveragonzalez@gmail.com
 
 Version
 0.1.1
+
+## Acknowledgments
+
+Thanks to the contributions and support from the community. Special thanks to:
+- [@kunthar](https://github.com/kunthar) for his invaluable insights and contributions to this project.
+
 # Disclaimer
 This script is provided as-is. Use at your own risk.
 
