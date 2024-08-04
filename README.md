@@ -28,7 +28,8 @@ Clone this repository to your local machine:
 git clone https://github.com/Johnrivera7/postgresql-consul-patroni-cluster.git
 cd postgresql-consul-patroni-cluster
 chmod u+x setup_postgres_cluster.sh
-./setup_postgres_cluster.sh```
+./setup_postgres_cluster.sh
+```
 
 ## Author
 John Rivera González - johnriveragonzalez@gmail.com
