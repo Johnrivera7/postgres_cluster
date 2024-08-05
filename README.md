@@ -26,7 +26,7 @@ This script automates the deployment of a PostgreSQL cluster with Consul handlin
 Clone this repository to your local machine:
 ```bash
 git clone https://github.com/Johnrivera7/postgres_cluster.git
-cd postgres-cluster
+cd postgres_cluster
 chmod u+x setup_postgres_cluster.sh
 ./setup_postgres_cluster.sh
 ```
