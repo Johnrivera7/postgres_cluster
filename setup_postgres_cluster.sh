@@ -42,7 +42,7 @@ else
     fi
     echo "Ingrese las contraseñas proporcionadas por el administrador del nodo maestro:"
     read -p "Contraseña de PostgreSQL del nodo maestro: " POSTGRES_PASSWORD
-    read -p "Contraseña de replicación del nodo maestro: " REPL_PASSWORD"
+    read -p "Contraseña de replicación del nodo maestro: " REPL_PASSWORD
 fi
 
 echo "La configuración del nodo se ha completado."
@@ -61,29 +61,48 @@ sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo apt update && sudo apt install -y postgresql
 
-PG_VERSION=$(psql -V | awk '{print $3}' | cut -d. -f1-2)
+PG_VERSION=$(psql -V | awk '{print $3}' | cut -d. -f1)
 echo "Versión de PostgreSQL detectada: $PG_VERSION"
 
 echo "Instalando Patroni..."
-pip3 install patroni[etcd]
+pip3 install patroni[consul]
 
 # Obtener la última versión de Consul de la API de GitHub
-CONSUL_VERSION=$(curl -s https://api.github.com/repos/hashicorp/consul/releases/latest | grep 'tag_name' | cut -d '"' -f 4)
+CONSUL_VERSION=$(curl -s https://api.github.com/repos/hashicorp/consul/releases/latest | grep 'tag_name' | cut -d '"' -f 4 | sed 's/^v//')
 echo "Descargando e instalando Consul versión $CONSUL_VERSION..."
 wget https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
 unzip consul_${CONSUL_VERSION}_linux_amd64.zip
 sudo mv consul /usr/local/bin/
 rm consul_${CONSUL_VERSION}_linux_amd64.zip
-sudo mkdir -p /etc/consul.d /var/lib/consul
-cat <<EOF | sudo tee /etc/consul.d/consul.hcl
-datacenter = "dc1"
-data_dir = "/var/lib/consul"
-client_addr = "0.0.0.0"
-bind_addr = "$NODE_IP"
-retry_join = ["${OTHER_NODES[@]}"]
-ui = true
+
+# Configurar Consul como un servicio systemd
+sudo useradd --system --home /etc/consul.d --shell /bin/false consul
+sudo mkdir --parents /var/lib/consul
+sudo chown --recursive consul:consul /var/lib/consul /etc/consul.d
+
+sudo tee /etc/systemd/system/consul.service > /dev/null <<EOF
+[Unit]
+Description=Consul
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+User=consul
+Group=consul
+ExecStart=/usr/local/bin/consul agent -server -bootstrap-expect=1 -data-dir=/var/lib/consul -config-dir=/etc/consul.d -bind=$NODE_IP
+ExecReload=/bin/kill -HUP \$MAINPID
+KillMode=process
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
 EOF
-sudo systemctl start consul && sudo systemctl enable consul
+
+sudo systemctl daemon-reload
+sudo systemctl enable consul
+sudo systemctl start consul
 
 NUM_CPUS=$(grep -c ^processor /proc/cpuinfo)  # Obtiene el número de CPUs
 
@@ -97,8 +116,8 @@ name: $NODE_NAME
 restapi:
   listen: 0.0.0.0:8008
   connect_address: $NODE_IP:8008
-etcd:
-  hosts: $NODE_IP:2379
+consul:
+  host: 127.0.0.1:8500
 bootstrap:
   dcs:
     ttl: 30
@@ -137,7 +156,27 @@ postgresql:
       username: repl
       password: $REPL_PASSWORD
 EOF
-sudo patroni $PATRONI_CONFIG_FILE
+
+# Configurar Patroni como un servicio systemd
+sudo tee /etc/systemd/system/patroni.service > /dev/null <<EOF
+[Unit]
+Description=Patroni
+After=network.target
+
+[Service]
+User=postgres
+Group=postgres
+ExecStart=/usr/local/bin/patroni /etc/patroni/${NODE_NAME}_patroni.yml
+Restart=always
+LimitNOFILE=1024
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable patroni
+sudo systemctl start patroni
 
 echo "Patroni configurado y en ejecución."
 echo "Mostrando el estado del clúster de Patroni..."
