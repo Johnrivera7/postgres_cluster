@@ -8,6 +8,10 @@ echo "Script creado por: John Rivera González <johnriveragonzalez7@gmail.com>"
 echo "============================================="
 echo ""
 
+# Obtener la IP local
+NODE_IP=$(hostname -I | awk '{print $1}')
+echo "La IP detectada para este nodo es: $NODE_IP"
+
 # Solicitar la configuración del nodo antes de comenzar la instalación
 echo "Determinando la configuración del nodo..."
 read -p "¿Es este el nodo maestro (pg-001)? (s/n): " IS_MASTER
@@ -38,7 +42,7 @@ else
     fi
     echo "Ingrese las contraseñas proporcionadas por el administrador del nodo maestro:"
     read -p "Contraseña de PostgreSQL del nodo maestro: " POSTGRES_PASSWORD
-    read -p "Contraseña de replicación del nodo maestro: " REPL_PASSWORD
+    read -p "Contraseña de replicación del nodo maestro: " REPL_PASSWORD"
 fi
 
 echo "La configuración del nodo se ha completado."
@@ -48,6 +52,9 @@ echo ""
 echo "Actualizando el sistema y preparando la instalación de componentes..."
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y wget curl gnupg2 lsb-release software-properties-common unzip python3 python3-pip
+
+# Instalar psycopg para la conexión de Patroni con PostgreSQL
+pip3 install psycopg
 
 echo "Agregando el repositorio de PostgreSQL..."
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
