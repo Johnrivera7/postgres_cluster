@@ -12,6 +12,12 @@ echo ""
 NODE_IP=$(hostname -I | awk '{print $1}')
 echo "La IP detectada para este nodo es: $NODE_IP"
 
+# Verificar que la IP no esté vacía
+if [ -z "$NODE_IP" ]; then
+    echo "Error: no se pudo determinar la IP del nodo. Asegúrate de que el sistema está conectado a una red."
+    exit 1
+fi
+
 # Solicitar la configuración del nodo antes de comenzar la instalación
 echo "Determinando la configuración del nodo..."
 read -p "¿Es este el nodo maestro (pg-001)? (s/n): " IS_MASTER
@@ -77,8 +83,17 @@ rm consul_${CONSUL_VERSION}_linux_amd64.zip
 
 # Configurar Consul como un servicio systemd
 sudo useradd --system --home /etc/consul.d --shell /bin/false consul
-sudo mkdir --parents /var/lib/consul
-sudo chown --recursive consul:consul /var/lib/consul /etc/consul.d
+sudo mkdir -p /etc/consul.d /var/lib/consul
+sudo chown -R consul:consul /etc/consul.d /var/lib/consul
+
+sudo tee /etc/consul.d/consul.hcl > /dev/null <<EOF
+datacenter = "dc1"
+data_dir = "/var/lib/consul"
+client_addr = "0.0.0.0"
+bind_addr = "$NODE_IP"
+retry_join = ["${OTHER_NODES[@]}"]
+ui = true
+EOF
 
 sudo tee /etc/systemd/system/consul.service > /dev/null <<EOF
 [Unit]
