@@ -48,7 +48,7 @@ else
     fi
     echo "Ingrese las contraseñas proporcionadas por el administrador del nodo maestro:"
     read -p "Contraseña de PostgreSQL del nodo maestro: " POSTGRES_PASSWORD
-    read -p "Contraseña de replicación del nodo maestro: " REPL_PASSWORD
+    read -p "Contraseña de replicación: " REPL_PASSWORD
 fi
 
 echo "La configuración del nodo se ha completado."
@@ -69,6 +69,17 @@ sudo apt update && sudo apt install -y postgresql
 
 PG_VERSION=$(psql -V | awk '{print $3}' | cut -d. -f1)
 echo "Versión de PostgreSQL detectada: $PG_VERSION"
+
+# Inicializar la base de datos si el directorio de datos está vacío
+if [ -z "$(ls -A /var/lib/postgresql/$PG_VERSION/main)" ]; then
+    echo "Inicializando la base de datos PostgreSQL..."
+    sudo -u postgres /usr/lib/postgresql/$PG_VERSION/bin/initdb -D /var/lib/postgresql/$PG_VERSION/main
+    echo "Base de datos inicializada."
+fi
+
+# Establecer la contraseña para el usuario postgres
+echo "Configurando la contraseña del usuario postgres..."
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD '$POSTGRES_PASSWORD';"
 
 echo "Instalando Patroni..."
 pip3 install patroni[consul]
