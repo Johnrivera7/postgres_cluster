@@ -200,9 +200,13 @@ LimitNOFILE=1024
 WantedBy=multi-user.target
 EOF
 
+sudo rm -rf /var/lib/postgresql/16/main/*
+sudo -u postgres /usr/lib/postgresql/16/bin/initdb -D /var/lib/postgresql/16/main
+
 sudo systemctl daemon-reload
 sudo systemctl enable patroni
 sudo systemctl start patroni
+
 
 echo "Patroni configurado y en ejecución."
 echo "Mostrando el estado del clúster de Patroni..."
